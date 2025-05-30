@@ -53,13 +53,13 @@ public class MenuService extends Debug {
 
     private void login() {
         System.out.println("\n===== LOGIN =====");
-        System.out.print("Email: ");
+        System.out.print("Email / Name: ");
         String email = scanner.nextLine();
         System.out.print("Password: ");
         String password = scanner.nextLine();
 
         if (userService.authenticateUser(email, password)) {
-            currentUser = userService.findUserByEmail(email);
+            currentUser = userService.findUserByEmailOrName(email);
             System.out.println("Login successful. Welcome, " + currentUser.getName() + "!");
 
             if (currentUser.getType().equals("ADMIN")) {
@@ -231,8 +231,11 @@ public class MenuService extends Debug {
 
         System.out.print("Account Name: ");
         String name = scanner.nextLine();
+        System.out.print("Choose a card from which to make the deposit: ");
+
         System.out.print("Initial Deposit: ");
         String initialBalance = scanner.nextLine();
+        // De verificat daca am destui bani pe card sa fac un account cu deposit
 
         Account newAccount;
 
@@ -241,8 +244,18 @@ public class MenuService extends Debug {
             int withdrawalLimit = 30;
             newAccount = accountService.createTransactionsAccount(name, initialBalance, monthlyFee, withdrawalLimit);
         } else if (choice == 2) {
-            String interestRate = "2.5";
-            int commitmentPeriod = 12;
+            System.out.println("Select commitment period: 6 / 12 / 24 months");
+            int commitmentPeriod = scanner.nextInt();
+            while (commitmentPeriod != 6 && commitmentPeriod != 12 && commitmentPeriod != 24) {
+                System.out.println("Invalid commitment period. Please try again.");
+                commitmentPeriod = scanner.nextInt();
+            }
+            String interestRate = switch (commitmentPeriod) {
+                case 6 -> "1.3";
+                case 12 -> "1.9";
+                case 24 -> "2.5";
+                default -> "";
+            };
             newAccount = accountService.createSavingsAccount(name, initialBalance, interestRate, commitmentPeriod);
         } else {
             System.out.println("Invalid choice. Account creation canceled.");

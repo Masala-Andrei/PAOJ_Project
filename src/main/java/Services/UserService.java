@@ -66,9 +66,9 @@ public class UserService extends Debug {
         }
     }
 
-    public User findUserByEmail(String email) {
+    public User findUserByEmailOrName(String emailName) {
         for (User user : Users) {
-            if (user.getEmail().equals(email)) {
+            if (user.getEmail().equals(emailName) || user.getName().equals(emailName)) {
                 return user;
             }
         }
@@ -85,7 +85,7 @@ public class UserService extends Debug {
     }
 
     public boolean authenticateUser(String email, String password) {
-        User user = findUserByEmail(email);
+        User user = findUserByEmailOrName(email);
         if (user != null && user.getPassword().equals(password)) {
             return true;
         }

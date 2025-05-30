@@ -9,7 +9,7 @@ import java.security.Provider;
 import java.util.ArrayList;
 
 public class AccountService extends Debug {
-    private ArrayList<Account> accounts;
+    private final ArrayList<Account> accounts;
 
     public AccountService() {
         this.accounts = new ArrayList<>();
