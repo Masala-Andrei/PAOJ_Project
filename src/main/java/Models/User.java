@@ -12,7 +12,7 @@ public class User extends Services.Debug{
     private String type;
     private ArrayList<Account> Accounts;
 
-    public User(String name, String email, String phoneNumber, String password, String type) {
+    public User(String name, String email, String phoneNumber, String password, String type, ArrayList<Account> Accounts) {
         id = idCounter + 1;
         idCounter++;
         this.name = name;
@@ -20,7 +20,7 @@ public class User extends Services.Debug{
         this.phoneNumber = phoneNumber;
         this.password = password;
         this.type = type;
-        this.Accounts = new ArrayList<>();
+        this.Accounts = Accounts;
     }
 
     public String getName() {
@@ -71,11 +71,6 @@ public class User extends Services.Debug{
         this.type = type;
     }
 
-    public void addAccount(Account account) {
-        Accounts.add(account);
-        if (debug)
-            System.out.println("Account " + account.getName() + " added to user " + this.name);
-    }
 
     public void removeAccount(Account account) {
         if (Accounts.contains(account)) {

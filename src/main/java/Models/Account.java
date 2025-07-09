@@ -8,26 +8,30 @@ public abstract class Account {
     protected String type;
     protected String name;
     protected String balance;
-    protected boolean active;
+    protected String IBAN;
 
     static{
         staticAccountId = 1;
     }
 
-    public Account(String type, String name, String balance) {
-        this.accountId = staticAccountId++;
+    public Account(String type, String name, String balance, String IBAN) {
         this.type = type;
+        this.accountId = staticAccountId++;
         this.name = name;
         this.balance = balance;
-        this.active = true;
+        this.IBAN = IBAN;
     }
 
-    public int getIdAccount() {
-        return accountId;
+    public String getIBAN() {
+        return IBAN;
     }
 
     public String getType() {
         return type;
+    }
+
+    public int getIdAccount() {
+        return accountId;
     }
 
     public String getName() {
@@ -38,14 +42,6 @@ public abstract class Account {
         return balance;
     }
 
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
     public void setName(String name) {
         this.name = name;
     }
@@ -54,9 +50,6 @@ public abstract class Account {
         this.balance = balance;
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
-    }
 
     public void addBalance(String amount) {
         double currentBalance = Double.parseDouble(this.balance);
@@ -65,7 +58,6 @@ public abstract class Account {
         this.setBalance(String.valueOf(newBalance));
     }
 
-    public abstract void withdraw(String amount);
-    public abstract void deposit(String amount);
+
     public abstract String getAccountInfo();
 }

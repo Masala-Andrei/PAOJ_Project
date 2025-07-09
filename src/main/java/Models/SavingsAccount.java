@@ -4,8 +4,8 @@ public class SavingsAccount extends Account {
     private String interestRate;
     private int commitmentPeriod;
 
-    public SavingsAccount(String type, String name, String balance, String interestRate, int commitmentPeriod) {
-        super(type, name, balance);
+    public SavingsAccount(String type, String name, String balance, String interestRate, int commitmentPeriod, String IBAN) {
+        super(type, name, balance, IBAN);
         this.interestRate = interestRate;
         this.commitmentPeriod = commitmentPeriod;
     }
@@ -35,28 +35,7 @@ public class SavingsAccount extends Account {
         this.balance = String.valueOf(newBalance);
     }
 
-    @Override
-    public void withdraw(String amount) {
-        double currentBalance = Double.parseDouble(this.balance);
-        double withdrawAmount = Double.parseDouble(amount);
 
-        if (withdrawAmount <= currentBalance) {
-            double newBalance = currentBalance - withdrawAmount;
-            this.balance = String.valueOf(newBalance);
-            System.out.println("Withdrawal successful. New balance: " + this.balance);
-        } else {
-            System.out.println("Insufficient funds!");
-        }
-    }
-
-    @Override
-    public void deposit(String amount) {
-        double currentBalance = Double.parseDouble(this.balance);
-        double depositAmount = Double.parseDouble(amount);
-        double newBalance = currentBalance + depositAmount;
-        this.balance = String.valueOf(newBalance);
-        System.out.println("Deposit successful. New balance: " + this.balance);
-    }
 
     @Override
     public String getAccountInfo() {
