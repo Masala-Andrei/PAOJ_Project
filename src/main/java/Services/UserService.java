@@ -39,17 +39,16 @@ public class UserService extends DBConnector {
         }
     }
 
-    public void deleteUser(User user) {
-        System.out.println("Are you sure you want to delete your account?");
-        Scanner sc = new Scanner(System.in);
-        String answer = sc.nextLine();
-        if (answer.equalsIgnoreCase("yes")) {
-            try {
-                Users.remove(user);
-                System.out.println("Your account has been deleted");
-            } catch (Exception e) {
-                System.out.println(e);
-            }
+    public void deleteUser(User user, int accId)  {
+        Users.remove(user);
+        try{
+            String sql = "DELETE FROM user WHERE id = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, accId);
+            stmt.executeUpdate();
+            stmt.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -115,7 +114,7 @@ public class UserService extends DBConnector {
                 ResultSet rs3 = stmt.executeQuery();
                 while (rs3.next()) {
                     temp.add(new SavingsAccount(
-                            "Savings",
+                                    "Savings",
                                     rs3.getString("name"),
                                     rs3.getString("balance"),
                                     rs3.getString("interestRate"),
@@ -144,14 +143,6 @@ public class UserService extends DBConnector {
         }
     }
 
-    public User findUserById(int id) {
-        for (User user : Users) {
-            if (user.getId() == id) {
-                return user;
-            }
-        }
-        return null;
-    }
 
     public boolean authenticateUser(String email, String password) {
         User user = findUserByEmailOrName(email);

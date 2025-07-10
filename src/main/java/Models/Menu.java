@@ -7,6 +7,7 @@ import java.sql.SQLException;
 
 public class Menu {
     private UserService userService;
+    private TransactionService transactionService;
     private AccountService accountService;
     private MenuService menuService;
     private DBConnector con;
@@ -18,6 +19,8 @@ public class Menu {
 
     private void initialize() {
         userService = new UserService();
+        accountService = new AccountService();
+        transactionService = new TransactionService();
         accountService = new AccountService();
         menuService = new MenuService(userService, accountService);
         con = new DBConnector();

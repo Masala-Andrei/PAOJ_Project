@@ -3,12 +3,12 @@ package Services;
 import Connection.DBConnector;
 import Models.*;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.Set;
 
 public class MenuService extends DBConnector {
     private UserService userService;
@@ -16,10 +16,14 @@ public class MenuService extends DBConnector {
     private Scanner scanner;
     private User currentUser;
     private int idUser;
+    private TransactionService transactionService;
+    private AuditService auditService;
 
     public MenuService(UserService userService, AccountService accountService) {
         this.userService = userService;
         this.accountService = accountService;
+        this.transactionService = new TransactionService();
+        this.auditService = new AuditService();
         this.scanner = new Scanner(System.in);
     }
 
@@ -30,7 +34,6 @@ public class MenuService extends DBConnector {
     private void mainMenu() throws SQLException {
         boolean exit = false;
         DBConnector con = new DBConnector();
-        System.out.println(con.connect());
 
         while (!exit) {
             System.out.println("\n===== BANKING SYSTEM =====");
@@ -39,7 +42,7 @@ public class MenuService extends DBConnector {
             System.out.println("3. Exit");
             System.out.print("Select an option: ");
 
-            int choice = getIntInput();
+            int choice = Integer.parseInt(scanner.nextLine());
 
             switch (choice) {
                 case 1:
@@ -51,6 +54,7 @@ public class MenuService extends DBConnector {
                 case 3:
                     exit = true;
                     System.out.println("Thank you for using our Banking System. Goodbye!");
+                    auditService.logAction("User exited");
                     break;
                 default:
                     System.out.println("Invalid option. Please try again.");
@@ -58,7 +62,7 @@ public class MenuService extends DBConnector {
         }
     }
 
-    private void login() {
+    private void login() throws SQLException {
         System.out.println("\n===== LOGIN =====");
         System.out.print("Email / Name: ");
         String emailName = scanner.nextLine();
@@ -84,11 +88,13 @@ public class MenuService extends DBConnector {
             if (currentUser.getType().equals("ADMIN")) {
                 adminMenu();
             } else {
+                auditService.logAction("Login user " + currentUser.getName());
                 customerMenu();
             }
         } else {
             System.out.println("Invalid email, username or password. Please try again.");
         }
+
     }
 
     private void registerNewUser() throws SQLException {
@@ -104,7 +110,7 @@ public class MenuService extends DBConnector {
 
         User newUser = new User(name, email, phone, password, "CUSTOMER", new ArrayList<Account>());
         userService.addUser(newUser);
-
+        auditService.logAction("Registered new user " + newUser.getName());
         System.out.println("Registration successful! You can now login with your credentials.");
     }
 
@@ -122,7 +128,7 @@ public class MenuService extends DBConnector {
             System.out.println("7. Logout");
             System.out.print("Select an option: ");
 
-            int choice = getIntInput();
+            int choice = Integer.parseInt(scanner.nextLine());
 
             switch (choice) {
                 case 1:
@@ -153,32 +159,34 @@ public class MenuService extends DBConnector {
 
     private void removeUser() {
         System.out.print("Enter the ID of the user to remove: ");
-        int userId = getIntInput();
+        int userId = Integer.parseInt(scanner.nextLine());
         userService.removeUserAdmin(userId);
     }
 
     private void displayAllAccounts() {
         System.out.println("\n===== ALL ACCOUNTS =====");
         for (Account account : accountService.getAllAccounts()) {
-            System.out.println(account.getAccountInfo());
+            System.out.println(account);
             System.out.println("------------------------");
         }
     }
 
-    private void customerMenu() {
+    private void customerMenu() throws SQLException {
         boolean logout = false;
 
         while (!logout) {
             System.out.println("\n===== CUSTOMER MENU =====");
             System.out.println("1. View My Accounts");
             System.out.println("2. Create New Account");
-            System.out.println("3. Transfer Between Accounts");
-            System.out.println("4. Transfer to other Recipient");
-            System.out.println("5. Show Personal Information");
-            System.out.println("6. Logout");
+            System.out.println("3. Transfer Money");
+            System.out.println("4. Show Personal Information");
+            System.out.println("5. Show Previous Transactions For An Account");
+            System.out.println("6. Close an existing Banking Account");
+            System.out.println("7. Close your Account");
+            System.out.println("8. Logout");
             System.out.print("Select an option: ");
 
-            int choice = getIntInput();
+            int choice = Integer.parseInt(scanner.nextLine());
 
             switch (choice) {
                 case 1:
@@ -188,16 +196,24 @@ public class MenuService extends DBConnector {
                     createNewAccount();
                     break;
                 case 3:
-                    transferBetweenAccounts();
+                    transferMoney();
                     break;
                 case 4:
-                    transferToDifferentUser();
-                    break;
-                case 5:
                     showPersonaInfo();
                     break;
+                case 5:
+                    showTransactions();
+                    break;
                 case 6:
+                    closeABankingAccount();
+                    break;
+                case 7:
+                    closeYourAccount();
                     logout = true;
+                    break;
+                case 8:
+                    logout = true;
+                    auditService.logAction("Logout user " + currentUser.getName());
                     currentUser = null;
                     System.out.println("Logged out successfully.");
                     break;
@@ -215,9 +231,10 @@ public class MenuService extends DBConnector {
         }
 
         for (Account account : currentUser.getAccounts()) {
-            System.out.println(account.getAccountInfo());
+            System.out.println(account);
             System.out.println("------------------------");
         }
+        auditService.logAction("Displayed user's " + currentUser.getName() + " accounts");
     }
 
     private void createNewAccount() {
@@ -227,7 +244,7 @@ public class MenuService extends DBConnector {
         System.out.println("2. Savings Account");
         System.out.print("Your choice: ");
 
-        int choice = getIntInput();
+        int choice = Integer.parseInt(scanner.nextLine());
 
         System.out.print("Account Name: ");
         String name = scanner.nextLine();
@@ -241,10 +258,10 @@ public class MenuService extends DBConnector {
             newAccount = new TransactionsAccount("Transactions", name, "0.0", monthlyFee, IBAN);
         } else if (choice == 2) {
             System.out.println("Select commitment period: 6 / 12 / 24 months");
-            int commitmentPeriod = scanner.nextInt();
+            int commitmentPeriod = Integer.parseInt(scanner.nextLine());
             while (commitmentPeriod != 6 && commitmentPeriod != 12 && commitmentPeriod != 24) {
                 System.out.println("Invalid commitment period. Please try again.");
-                commitmentPeriod = scanner.nextInt();
+                commitmentPeriod = Integer.parseInt(scanner.nextLine());
             }
             String interestRate = switch (commitmentPeriod) {
                 case 6 -> "1.3";
@@ -259,111 +276,10 @@ public class MenuService extends DBConnector {
         }
 
         accountService.linkAccountToUser(newAccount, currentUser, idUser);
+        currentUser.addAccount(newAccount);
+        auditService.logAction("Created new account " + newAccount.getName() + " for user " + currentUser.getName());
         System.out.println("Account created successfully!");
     }
-
-    private void transferBetweenAccounts() {
-        if (currentUser.getAccounts().size() < 2) {
-            System.out.println("You need at least two accounts to make a transfer.");
-            return;
-        }
-
-        System.out.println("\n===== TRANSFER BETWEEN ACCOUNTS =====");
-        Account fromAccount = selectAccount("transfer from");
-        if (fromAccount == null) return;
-
-        Account toAccount = selectAccount("transfer to");
-        if (toAccount == null) return;
-
-        while (fromAccount == toAccount) {
-            System.out.println("Cannot transfer to the same account.");
-            fromAccount = selectAccount("transfer from");
-            toAccount = selectAccount("transfer to");
-        }
-
-        System.out.print("Enter amount to transfer: ");
-        String amount = scanner.nextLine();
-
-        if (fromAccount instanceof TransactionsAccount) {
-            ((TransactionsAccount) fromAccount).transfer((TransactionsAccount) toAccount, amount);
-        } else {
-            System.out.println("Transfers can only be initiated from Transaction accounts.");
-        }
-    }
-
-
-    //to expand
-//    private void requestCreditCard() {
-//        System.out.println("In order to have a Credit card, you have to create a special Credit Account. Would you like to proceed?");
-//    }
-//
-//    private void transferToExternalCard() {
-//        System.out.println("\n===== TRANSFER TO RECIPIENT =====");
-//
-//        TransactionsAccount fromAccount = null;
-//        boolean foundTransactionAccount = false;
-//
-//        for (Account account : currentUser.getAccounts()) {
-//            if (account instanceof TransactionsAccount) {
-//                foundTransactionAccount = true;
-//                break;
-//            }
-//        }
-//
-//        if (!foundTransactionAccount) {
-//            System.out.println("You need a Transaction Account to make external transfers.");
-//            return;
-//        }
-//
-//        Account selectedAccount = selectAccount("transfer from");
-//        if (selectedAccount == null) return;
-//
-//        while (!(selectedAccount instanceof TransactionsAccount)) {
-//            System.out.println("External transfers can only be initiated from Transaction accounts.");
-//            selectedAccount = selectAccount("transfer to");
-//        }
-//
-//        fromAccount = (TransactionsAccount) selectedAccount;
-//
-//        System.out.print("Enter recipient's card number (16 digits): ");
-//        String recipientCardNumber = scanner.nextLine().replaceAll("\\s", ""); // Scap de spatii
-//
-//        if (recipientCardNumber.length() != 16) {
-//            System.out.println("Invalid card number. Card number must be 16 digits.");
-//            return;
-//        }
-//
-//        System.out.print("Enter amount to transfer: ");
-//        String amount = scanner.nextLine();
-//
-//        try {
-//            double transferAmount = Double.parseDouble(amount);
-//            if (transferAmount <= 0) {
-//                System.out.println("Transfer amount must be positive.");
-//                return;
-//            }
-//        } catch (NumberFormatException e) {
-//            System.out.println("Invalid amount format.");
-//            return;
-//        }
-//
-//        // Get transfer description
-//        System.out.print("Enter transfer description (optional): ");
-//        String description = scanner.nextLine();
-//        if (description.trim().isEmpty()) {
-//            description = "External transfer";
-//        }
-//
-//        // Perform the transfer
-//        boolean success = accountService.transferToExternalCard(fromAccount, recipientCardNumber, amount, description, cardService);
-//
-//        if (success) {
-//            System.out.println("External transfer completed successfully!");
-//        } else {
-//            System.out.println("External transfer failed. Please check the details and try again.");
-//        }
-//    }
-
 
     private void showPersonaInfo() {
         System.out.print("Enter your password: ");
@@ -384,7 +300,7 @@ public class MenuService extends DBConnector {
         } else if (!answer.equalsIgnoreCase("n")) {
             System.out.println("Invalid answer.");
         }
-
+        auditService.logAction("Showed information for user " + currentUser.getName());
     }
 
     private void updatePersonalInfo() {
@@ -399,7 +315,7 @@ public class MenuService extends DBConnector {
             System.out.println("3. Phone Number: " + currentUser.getPhoneNumber());
             System.out.println("4. Password: " + currentUser.getPassword());
             System.out.print("Your choice: ");
-            int choice = getIntInput();
+            int choice = Integer.parseInt(scanner.nextLine());
             switch (choice) {
                 case 1:
                     System.out.print("Enter new name: ");
@@ -407,12 +323,14 @@ public class MenuService extends DBConnector {
                     currentUser.setName(modification);
                     System.out.println("Information updated successfully!");
                     sql = "UPDATE user SET name = ?";
+                    auditService.logAction("Updated user's name to " + modification);
                     break;
                 case 2:
                     System.out.print("Enter new email: ");
                     modification = scanner.nextLine();
                     currentUser.setEmail(modification);
                     System.out.println("Information updated successfully!");
+                    auditService.logAction("Updated user's email to " + modification);
                     sql = "UPDATE user SET email = ?";
                     break;
                 case 3:
@@ -420,6 +338,7 @@ public class MenuService extends DBConnector {
                     modification = scanner.nextLine();
                     currentUser.setPhoneNumber(modification);
                     System.out.println("Information updated successfully!");
+                    auditService.logAction("Updated user's phone number to " + modification);
                     sql = "UPDATE user SET phoneNumber = ?";
                     break;
                 case 4:
@@ -427,6 +346,7 @@ public class MenuService extends DBConnector {
                     modification = scanner.nextLine();
                     currentUser.setPassword(modification);
                     System.out.println("Information updated successfully!");
+                    auditService.logAction("Updated user's password to " + modification);
                     sql = "UPDATE user SET password = ?";
                     break;
                 default:
@@ -456,47 +376,227 @@ public class MenuService extends DBConnector {
 
     }
 
-    private Account selectAccount(String action) {
-        System.out.println("\nSelect an account to " + action + ":");
 
-        if (currentUser.getAccounts().isEmpty()) {
-            System.out.println("You don't have any accounts yet.");
-            return null;
+    private void transferMoney() {
+        String senderIban, ammount, accountName;
+        Account sender = null;
+
+        System.out.println("\n===== TRANSFER TO OTHER ACCOUNT =====");
+        for (Account account : currentUser.getAccounts()) {
+            if (account instanceof TransactionsAccount) {
+                System.out.println(account);
+                System.out.println("------------------");
+            }
+        }
+        System.out.println("From what account would you want to transfer? (Account name)");
+        accountName = scanner.nextLine();
+        boolean found = false;
+        while (!found) {
+            for (Account account : currentUser.getAccounts()) {
+                if (account.getName().equals(accountName)) {
+                    sender = account;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                System.out.println("Account not found. Try Again!");
+                accountName = scanner.nextLine();
+            }
         }
 
-        for (int i = 0; i < currentUser.getAccounts().size(); i++) {
-            Account account = currentUser.getAccounts().get(i);
-//            System.out.println((i + 1) + ". " + account.getName() + " (" + account.getType() + ") - Balance: " + account.getBalance());
+        System.out.println("==== Choose from know recipients ====");
+        ArrayList<String> info = accountService.getRecipients(idUser);
+        int j = 1;
+        for (int i = 0; i < info.size(); i = i + 2) {
+            System.out.println(j + ") User name:" + info.get(i + 1));
+            System.out.println("IBAN:" + info.get(i));
+            System.out.println();
+            j += 1;
+        }
+        System.out.println(j + ") New recipient");
+        System.out.println();
+        System.out.println((j + 1) + ") Abort");
+
+        int choice = Integer.parseInt(scanner.nextLine());
+        while (true) {
+            if (choice == j) {
+                System.out.println("Specify sender Iban: ");
+                senderIban = scanner.nextLine();
+                break;
+            } else if (0 < choice && choice < j) {
+                senderIban = info.get((choice - 1) * 2);
+                break;
+            } else if (choice == j + 1)
+                return;
+            System.out.println("Invalid option. Try again!");
         }
 
-        System.out.print("Your choice (number): ");
-        int accountIndex = getIntInput();
 
-        while (accountIndex < 1 || accountIndex > currentUser.getAccounts().size()) {
-            System.out.println("Invalid selection. Try again");
-            accountIndex = getIntInput();
+        Account receiver = accountService.getAccountByIban(senderIban);
+        System.out.println("Select ammount: ");
+        ammount = scanner.nextLine();
+        while (Double.parseDouble(sender.getBalance()) - Double.parseDouble(ammount) < 0) {
+            System.out.println("Not enough balance, try again");
+            ammount = scanner.nextLine();
         }
 
-        return currentUser.getAccounts().get(accountIndex - 1);
-    }
+        String description = "";
+        System.out.println("Add a description to the transaction.");
+        description = scanner.nextLine();
 
-    private int getIntInput() {
+        sender.setBalance(Double.toString(Double.parseDouble(sender.getBalance()) - Double.parseDouble(ammount)));
+        receiver.setBalance(Double.toString(Double.parseDouble(receiver.getBalance()) + Double.parseDouble(ammount)));
+        accountService.updateBalance(receiver);
+        accountService.updateBalance(sender);
+        int receiverId = 0, senderId = 0;
         try {
-            return Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            return -1;
+            String sql = "SELECT accountId from account where iban = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, receiver.getIBAN());
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            receiverId = rs.getInt("accountid");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    }
+        accountService.addRecipient(idUser, receiverId);
+        auditService.logAction("User " + currentUser.getName() + " transferred from account " + sender.getIBAN() + ammount + " to "
+                + receiver.getIBAN() + " and added transaction to database");
 
-    private double getDoubleInput() {
+
         try {
-            return Double.parseDouble(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            return -1;
+            String sql = "SELECT accountId from account where iban = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, sender.getIBAN());
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            senderId = rs.getInt("accountid");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+        // Adding the Transaction
+        Transaction transaction = new Transaction(Integer.toString(senderId), Integer.toString(receiverId), ammount, description);
+        transactionService.addTransaction(transaction);
     }
 
-    private void transferToDifferentUser(Account sender, Account receiver){
+    private void showTransactions() {
+        System.out.println("\n===== Show Transactions =====");
+        System.out.println("\n===== ALL ACCOUNTS =====");
+        for (Account account : currentUser.getAccounts()) {
+            if (account instanceof TransactionsAccount) {
+                System.out.println(account);
+                System.out.println("-----------------");
+            }
+        }
+        System.out.println("Choose an account");
+        String accountName = scanner.nextLine();
+        Account account = null;
+        boolean found = false;
+        while (!found) {
+            for (Account a : currentUser.getAccounts()) {
+                if (a.getName().equals(accountName)) {
+                    account = a;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                System.out.println("Account not found. Try Again!");
+                accountName = scanner.nextLine();
+            }
+        }
+        int accId = 0;
+        try {
+            String sql = "SELECT accountId from account where iban = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, account.getIBAN());
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            accId = rs.getInt("accountid");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Set<Transaction> transactions = transactionService.getTransactions(accId);
+        for (Transaction transaction : transactions) {
+            transaction.showDetailedTransaction(accId);
+        }
+        auditService.logAction("Displayed transactions for user " + currentUser.getName());
+    }
 
+    public void closeABankingAccount() {
+        System.out.println("\n===== ALL ACCOUNTS =====");
+        for (Account account : currentUser.getAccounts()) {
+            if (account instanceof TransactionsAccount) {
+                System.out.println(account);
+                System.out.println("-----------------");
+            }
+        }
+        System.out.println("Choose an account");
+        String accountName = scanner.nextLine();
+        Account account = null;
+        boolean found = false;
+        while (!found) {
+            for (Account a : currentUser.getAccounts()) {
+                if (a.getName().equals(accountName)) {
+                    account = a;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                System.out.println("Account not found. Try Again!");
+                accountName = scanner.nextLine();
+            }
+        }
+        int accId = 0;
+        try {
+            String sql = "SELECT accountId from account where iban = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, account.getIBAN());
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            accId = rs.getInt("accountid");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        auditService.logAction("Removed account " + account.getName() + " from user " + currentUser.getName());
+        accountService.removeAccount(account, accId);
+        currentUser.removeAccount(account);
+        auditService.logAction("");
+    }
+
+    public void closeYourAccount() throws SQLException {
+        System.out.println("Are you sure you want to delete your account? (All your information will be lost)");
+        System.out.println("Type Yes to continue or No to abort");
+        String answer = scanner.nextLine();
+        boolean temp = true;
+        while (temp) {
+            switch (answer) {
+                case "Yes":
+                    int accId = 0;
+                    try{
+                        String sql = "Select id FROM user where name = ?";
+                        PreparedStatement stmt = connection.prepareStatement(sql);
+                        stmt.setString(1, currentUser.getName());
+                        ResultSet rs = stmt.executeQuery();
+                        rs.next();
+                        accId = rs.getInt("id");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    auditService.logAction("Account " + currentUser.getName() + " deleted");
+                    userService.deleteUser(currentUser, accId);
+                    temp = false;
+                    break;
+                case "No":
+                    temp = false;
+                    break;
+                default:
+                    System.out.println("Invalid answer. Try Again!");
+                    answer = scanner.nextLine();
+            }
+        }
     }
 }

@@ -2,9 +2,9 @@ package Models;
 
 import java.util.ArrayList;
 
-public class User extends Services.Debug{
+public class User {
     private static int idCounter = 0;
-    private int id;
+    private int id = 0;
     private String name;
     private String email;
     private String phoneNumber;
@@ -13,8 +13,7 @@ public class User extends Services.Debug{
     private ArrayList<Account> Accounts;
 
     public User(String name, String email, String phoneNumber, String password, String type, ArrayList<Account> Accounts) {
-        id = idCounter + 1;
-        idCounter++;
+
         this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
@@ -79,6 +78,10 @@ public class User extends Services.Debug{
         } else {
             System.out.println("Account not found!");
         }
+    }
+
+    public void addAccount(Account account) {
+        Accounts.add(account);
     }
 
     public Account findAccountByName(String accountName) {

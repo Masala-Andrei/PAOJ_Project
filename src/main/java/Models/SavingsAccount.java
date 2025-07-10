@@ -35,10 +35,8 @@ public class SavingsAccount extends Account {
         this.balance = String.valueOf(newBalance);
     }
 
-
-
     @Override
-    public String getAccountInfo() {
+    public String toString() {
         return "Savings Account: " + this.name +
                 "\nBalance: " + this.balance +
                 "\nInterest Rate: " + this.interestRate + "%" +

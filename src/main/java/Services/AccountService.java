@@ -6,7 +6,6 @@ import Models.SavingsAccount;
 import Models.TransactionsAccount;
 import Models.User;
 
-import java.security.Provider;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
@@ -20,19 +19,31 @@ public class AccountService extends DBConnector {
     }
 
     public ArrayList<Account> getAllAccounts() {
+        accounts.clear();
+        try{
+            String sql = "SELECT * FROM account";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return accounts;
     }
 
-    public void addAccount(Account account) {
-        accounts.add(account);
-    }
-
-    public void removeAccount(Account account) {
-        if (accounts.contains(account)) {
-            accounts.remove(account);
-            System.out.println("Account " + account.getName() + " removed from the system.");
-        } else {
-            System.out.println("Account not found in the system.");
+    public void removeAccount(Account account, int accId) {
+        accounts.remove(account);
+        try{
+            String sql = "DELETE FROM account where accountId = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, accId);
+            stmt.executeUpdate();
+            stmt.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -78,41 +89,14 @@ public class AccountService extends DBConnector {
                 sql = "INSERT INTO transactionsaccount(accountId, monthlyFee) values(?,?)";
                 stmt = connection.prepareStatement(sql);
                 stmt.setString(1, maxId);
-                stmt.setString(2, (Double.toString(((TransactionsAccount)account).getMonthlyFee())));
+                stmt.setString(2, (Double.toString(((TransactionsAccount) account).getMonthlyFee())));
             }
             stmt.execute();
             stmt.close();
-        }catch(Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
-
-//    public void transferBetweenAccounts(TransactionsAccount fromAccount, Account toAccount, String amount) {
-//        try {
-//            double transferAmount = Double.parseDouble(amount);
-//            double fromBalance = Double.parseDouble(fromAccount.getBalance());
-//
-//            if (transferAmount <= 0) {
-//                System.out.println("Transfer amount must be positive.");
-//                return;
-//            }
-//
-//            if (transferAmount > fromBalance) {
-//                System.out.println("Insufficient funds for transfer.");
-//                return;
-//            }
-//
-//            fromAccount.withdraw(amount);
-//
-//
-//            toAccount.deposit(amount);
-//
-//            System.out.println("Transfer of " + amount + " completed successfully.");
-//        } catch (NumberFormatException e) {
-//            System.out.println("Invalid amount format. Please enter a valid number.");
-//        }
-//    }
 
     public void applyInterestToAllSavingsAccounts() {
         for (Account account : accounts) {
@@ -132,12 +116,82 @@ public class AccountService extends DBConnector {
     }
 
 
-    public Account findAccountByName(String accountName) {
-        for (Account account : accounts) {
-            if (account.getName().equals(accountName)) {
-                return account;
-            }
+    public TransactionsAccount getAccountByIban(String IBAN) {
+        try {
+            String sql = "SELECT account.name, account.balance, account.iban,account.type, transactionsaccount.monthlyFee from account inner join " +
+                    "transactionsaccount on account.accountId = transactionsaccount.accountId " +
+                    "where account.iban = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, IBAN);
+            ResultSet rs = stmt.executeQuery();
+            rs.next();
+            return new TransactionsAccount(
+                    rs.getString("account.type"),
+                    rs.getString("account.name"),
+                    rs.getString("account.balance"),
+                    rs.getDouble("transactionsaccount.monthlyFee"),
+                    rs.getString("account.iban")
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return null;
     }
+
+    public void updateBalance(Account account) {
+        try {
+            String sql = "UPDATE account SET balance = ? WHERE IBAN = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, account.getBalance());
+            stmt.setString(2, account.getIBAN());
+            stmt.execute();
+            stmt.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void addRecipient(int sender, int receiver) {
+        try {
+            String sql = "SELECT * FROM recipientBook where userId = ? and recipientId = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, Integer.toString(sender));
+            stmt.setString(2, Integer.toString(receiver));
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return;
+            }
+
+            sql = "INSERT INTO recipientBook (userId, recipientid) values(?,?)";
+            stmt = connection.prepareStatement(sql);
+            stmt.setString(1, Integer.toString(sender));
+            stmt.setString(2, Integer.toString(receiver));
+            stmt.execute();
+            stmt.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public ArrayList<String> getRecipients(int userId) {
+        ArrayList<String> recipients = new ArrayList<>();
+        try {
+            String sql = "SELECT account.iban, recipient_user.name FROM recipientbook INNER JOIN account ON recipientbook.recipientId = account.accountId " +
+            "INNER JOIN user AS recipient_user ON account.userId = recipient_user.id WHERE recipientbook.userId = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, Integer.toString(userId));
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                recipients.add(rs.getString("iban"));
+                recipients.add(rs.getString("name"));
+            }
+            stmt.close();
+            return recipients;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 }
